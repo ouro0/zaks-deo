@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zak's Deo Download — Téléchargez. Gratuitement.</title>
+  <meta name="description" content="Téléchargez des vidéos et de l'audio depuis YouTube, TikTok, Instagram et Facebook. Gratuit, sans compte.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body data-page="index">
+
+  <!-- ── Navigation ─────────────────────────────────────────────────── -->
+  <nav class="nav">
+    <a href="/" class="nav-brand">
+      <span class="dot"></span>
+      Zak's Deo
+    </a>
+    <div class="nav-links">
+      <span class="nav-free-badge">✦ 100% Gratuit</span>
+      <!-- Toggle dark/light -->
+      <button class="theme-toggle" id="theme-toggle" title="Changer le thème">
+        <span id="theme-icon">☀️</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Hero ───────────────────────────────────────────────────────── -->
+  <section class="hero">
+
+    <div class="hero-eyebrow fade-up" style="animation-delay:.05s">
+      ⚡ YouTube · TikTok · Instagram · Facebook
+    </div>
+
+    <h1 class="fade-up" style="animation-delay:.1s">
+      Téléchargez.<br>
+      <span class="accent">Gratuitement.</span>
+    </h1>
+
+    <p class="fade-up" style="animation-delay:.15s">
+      Vidéos HD, MP3, M4A — en quelques secondes.<br>
+      Sans compte. Sans limite. Sans pub.
+    </p>
+
+    <!-- ── Download box ─────────────────────────────────────────────── -->
+    <div class="download-box card-glow fade-up" style="animation-delay:.2s">
+
+      <!-- Tabs : Simple / Multi -->
+      <div class="tabs-row">
+        <button class="tab-btn active" data-tab="single">⬇ Un lien</button>
+        <button class="tab-btn" data-tab="multi">📋 Plusieurs liens</button>
+        <button class="tab-btn" data-tab="history">🕘 Historique</button>
+      </div>
+
+      <!-- ── TAB : Single URL ────────────────────────────────────────── -->
+      <div class="tab-panel" id="tab-single">
+
+        <div class="url-row">
+          <input
+            type="url"
+            id="url-input"
+            placeholder="Collez votre lien ici — YouTube, TikTok, Instagram…"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button class="btn btn-primary" id="dl-btn">
+            ⬇ Télécharger
+          </button>
+        </div>
+
+        <!-- Formats -->
+        <div class="format-grid">
+          <button class="fmt-btn" data-fmt="video_hq">
+            <span class="fmt-icon">🎬</span>
+            <span class="fmt-label">Meilleur<br>qualité</span>
+          </button>
+          <button class="fmt-btn" data-fmt="video_1080">
+            <span class="fmt-icon">📺</span>
+            <span class="fmt-label">1080p<br>HD</span>
+          </button>
+          <button class="fmt-btn active" data-fmt="video_480">
+            <span class="fmt-icon">🔻</span>
+            <span class="fmt-label">480p<br>Léger</span>
+          </button>
+          <button class="fmt-btn" data-fmt="audio_mp3">
+            <span class="fmt-icon">🎵</span>
+            <span class="fmt-label">MP3<br>192k</span>
+          </button>
+          <button class="fmt-btn" data-fmt="audio_m4a">
+            <span class="fmt-icon">🎙</span>
+            <span class="fmt-label">M4A<br>Natif</span>
+          </button>
+        </div>
+
+        <!-- Recommandation format -->
+        <div class="rec-banner" id="rec-banner" style="display:none">
+          <span id="rec-text"></span>
+          <button class="rec-apply-btn" id="rec-apply">Appliquer ✓</button>
+        </div>
+
+        <!-- Preview -->
+        <div class="preview-card" id="preview-card">
+          <img id="preview-thumb" class="preview-thumb" src="" alt="">
+          <div class="preview-info">
+            <div class="preview-title" id="preview-title"></div>
+            <div class="preview-meta"  id="preview-meta"></div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="job-progress" id="job-progress">
+          <div class="progress-row">
+            <span id="progress-status">Téléchargement en cours…</span>
+            <span class="speed" id="progress-speed">—</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+          </div>
+          <div class="progress-row" style="font-size:.75rem">
+            <span id="progress-pct">0%</span>
+            <span>ETA <span id="progress-eta">—</span></span>
+          </div>
+        </div>
+
+        <!-- Message -->
+        <div class="msg" id="msg-box"></div>
+
+        <!-- Bouton de sauvegarde finale -->
+        <a id="download-link"
+           class="btn btn-success btn-lg"
+           style="display:none; width:100%; margin-top:.5rem; justify-content:center"
+           target="_blank">
+          💾 Sauvegarder le fichier
+        </a>
+
+      </div><!-- /tab-single -->
+
+      <!-- ── TAB : Multi URLs ────────────────────────────────────────── -->
+      <div class="tab-panel" id="tab-multi" style="display:none">
+        <p class="tab-desc">Collez plusieurs liens (un par ligne) — ils seront traités en file d'attente.</p>
+        <textarea
+          id="multi-input"
+          rows="5"
+          placeholder="https://youtube.com/watch?v=...&#10;https://tiktok.com/@...&#10;https://instagram.com/p/..."
+          spellcheck="false"
+        ></textarea>
+
+        <!-- Formats multi -->
+        <div class="format-grid" id="multi-format-grid">
+          <button class="fmt-btn" data-fmt="video_hq"><span class="fmt-icon">🎬</span><span class="fmt-label">Meilleur<br>qualité</span></button>
+          <button class="fmt-btn" data-fmt="video_1080"><span class="fmt-icon">📺</span><span class="fmt-label">1080p<br>HD</span></button>
+          <button class="fmt-btn active" data-fmt="video_480"><span class="fmt-icon">🔻</span><span class="fmt-label">480p<br>Léger</span></button>
+          <button class="fmt-btn" data-fmt="audio_mp3"><span class="fmt-icon">🎵</span><span class="fmt-label">MP3<br>192k</span></button>
+          <button class="fmt-btn" data-fmt="audio_m4a"><span class="fmt-icon">🎙</span><span class="fmt-label">M4A<br>Natif</span></button>
+        </div>
+
+        <button class="btn btn-primary" id="multi-dl-btn" style="width:100%; margin-top:.75rem">
+          📋 Lancer la file d'attente
+        </button>
+
+        <!-- Liste des jobs -->
+        <div id="queue-list" class="queue-list"></div>
+      </div><!-- /tab-multi -->
+
+      <!-- ── TAB : Historique ────────────────────────────────────────── -->
+      <div class="tab-panel" id="tab-history" style="display:none">
+        <p class="tab-desc">Vos 10 derniers téléchargements de cette session.</p>
+        <div id="history-list" class="history-list"></div>
+        <button class="btn btn-outline" id="clear-history-btn" style="margin-top:.75rem">
+          🗑 Effacer l'historique
+        </button>
+      </div><!-- /tab-history -->
+
+    </div>
+  </section>
+
+  <!-- ── Features ───────────────────────────────────────────────────── -->
+  <div class="features">
+    <div class="feat"><span class="i">🎬</span> Vidéo jusqu'en 4K</div>
+    <div class="feat"><span class="i">🎵</span> MP3 192 kbps</div>
+    <div class="feat"><span class="i">⚡</span> Rapide & simple</div>
+    <div class="feat"><span class="i">📱</span> Mobile-first</div>
+    <div class="feat"><span class="i">🔓</span> Sans compte</div>
+    <div class="feat"><span class="i">💸</span> 100% gratuit</div>
+    <div class="feat"><span class="i">📋</span> Multi-liens</div>
+    <div class="feat"><span class="i">🌙</span> Mode sombre/clair</div>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────── -->
+  <footer class="footer">
+    <p>© 2024 <strong>Zak</strong> — Zak's Deo Download. Tous droits réservés.</p>
+    <p class="legal-note">
+      ⚠️ L'utilisateur est responsable du contenu téléchargé. Respectez les droits d'auteur.
+    </p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
