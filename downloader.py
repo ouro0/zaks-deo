@@ -1,18 +1,31 @@
-# downloader.py — Zak's Deo Download
+# downloader.py — Zak's Deo Download v3
 # © 2024 Zak. Tous droits réservés.
 
-import os, shutil, re, sys
+import os, shutil, re, subprocess
 
-FFMPEG_OK     = shutil.which("ffmpeg") is not None
+def _check_ffmpeg() -> bool:
+    try:
+        r = subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=5)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+FFMPEG_OK     = _check_ffmpeg()
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
+if FFMPEG_OK:
+    print("[Downloader] ffmpeg détecté ✓")
+else:
+    print("[Downloader] ⚠ ffmpeg introuvable")
+
 FORMAT_DEFS = {
-    "video_hq"  : {"label": "Vidéo — Meilleure qualité", "emoji": "🎬", "ffmpeg_required": True},
-    "video_1080": {"label": "Vidéo — 1080p maximum",     "emoji": "📺", "ffmpeg_required": True},
-    "video_480" : {"label": "Vidéo — 480p léger",        "emoji": "🔻", "ffmpeg_required": False},
-    "audio_mp3" : {"label": "Audio — MP3 192 kbps",      "emoji": "🎵", "ffmpeg_required": True},
-    "audio_m4a" : {"label": "Audio — M4A natif",         "emoji": "🎙", "ffmpeg_required": False},
+    "video_hq"  : {"label": "Meilleure qualité", "emoji": "🎬", "ffmpeg_required": False},
+    "video_1080": {"label": "1080p HD",           "emoji": "📺", "ffmpeg_required": False},
+    "video_720" : {"label": "720p",               "emoji": "🖥",  "ffmpeg_required": False},
+    "video_480" : {"label": "480p léger",         "emoji": "🔻", "ffmpeg_required": False},
+    "audio_mp3" : {"label": "MP3 320 kbps",       "emoji": "🎵", "ffmpeg_required": True},
+    "audio_m4a" : {"label": "M4A natif",          "emoji": "🎙", "ffmpeg_required": False},
 }
 
 
@@ -34,49 +47,34 @@ def validate_url(url: str) -> bool:
 
 
 def _base_opts() -> dict:
-    """
-    Options communes à tous les appels yt-dlp.
-    Stratégie anti-bot améliorée :
-      1. mweb       → client mobile web, moins détecté
-      2. android    → client Android officiel
-      3. tv_embed   → client TV YouTube
-      4. ios        → fallback Apple
-      5. web        → fallback classique
-    """
     opts = {
-        "noplaylist"    : True,
-        "quiet"         : True,
-        "no_warnings"   : True,
-        "ignoreerrors"  : False,
-        # Simule un vrai navigateur Chrome récent
-        "http_headers"  : {
+        "noplaylist"  : True,
+        "quiet"       : True,
+        "no_warnings" : True,
+        "ignoreerrors": False,
+        "concurrent_fragment_downloads": 4,
+        "retries"            : 10,
+        "fragment_retries"   : 10,
+        "http_headers": {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/124.0.0.0 Safari/537.36"
             ),
             "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
-        # ✅ Clients améliorés : mweb + android ajoutés en priorité
+        # android_vr = le client le moins bloqué sur les serveurs cloud
         "extractor_args": {
             "youtube": {
-                "player_client": ["mweb", "android", "tv_embed", "ios", "web"],
+                "player_client": ["android_vr", "android", "mweb", "tv_embed", "ios", "web"],
             }
         },
-        # Délai léger pour éviter le rate-limit
-        "sleep_interval"      : 1,
-        "max_sleep_interval"  : 3,
-        # Retry automatique en cas d'échec réseau
-        "retries"             : 5,
-        "fragment_retries"    : 5,
     }
 
-    # Si l'utilisateur a placé un fichier cookies.txt → on l'utilise
     cookies_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
     if os.path.isfile(cookies_file):
         opts["cookiefile"] = cookies_file
-        print("[Downloader] Fichier cookies.txt détecté ✓")
+        print("[Downloader] cookies.txt détecté ✓")
 
     return opts
 
@@ -88,50 +86,45 @@ def build_ydl_opts(fmt_type: str, out_dir: str, hooks: list = None) -> dict:
 
     if fmt_type == "video_hq":
         if FFMPEG_OK:
-            base["format"] = (
-                "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
-                "/bestvideo[vcodec^=avc1]+bestaudio"
-                "/bestvideo[vcodec!^=av01]+bestaudio"
-                "/bestvideo+bestaudio/best"
-            )
+            base["format"] = "bestvideo+bestaudio/best"
             base["merge_output_format"] = "mp4"
         else:
             base["format"] = "best[ext=mp4]/best[ext=webm]/best"
 
     elif fmt_type == "video_1080":
         if FFMPEG_OK:
-            base["format"] = (
-                "bestvideo[height<=1080][vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
-                "/bestvideo[height<=1080][vcodec^=avc1]+bestaudio"
-                "/bestvideo[height<=1080][vcodec!^=av01]+bestaudio"
-                "/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
-            )
+            base["format"] = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
             base["merge_output_format"] = "mp4"
         else:
             base["format"] = "best[height<=1080][ext=mp4]/best[height<=1080]/best[ext=mp4]/best"
 
+    elif fmt_type == "video_720":
+        if FFMPEG_OK:
+            base["format"] = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
+            base["merge_output_format"] = "mp4"
+        else:
+            base["format"] = "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best"
+
     elif fmt_type == "video_480":
         if FFMPEG_OK:
-            base["format"] = (
-                "bestvideo[height<=480][vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
-                "/bestvideo[height<=480][vcodec^=avc1]+bestaudio"
-                "/bestvideo[height<=480]+bestaudio/best[height<=480]/best"
-            )
+            base["format"] = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
             base["merge_output_format"] = "mp4"
         else:
             base["format"] = "best[height<=480][ext=mp4]/best[height<=480]/best[ext=mp4]/best"
 
     elif fmt_type == "audio_mp3":
-        base["format"] = "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"
-        if FFMPEG_OK:
-            base["postprocessors"] = [{
-                "key"             : "FFmpegExtractAudio",
-                "preferredcodec"  : "mp3",
-                "preferredquality": "192",
-            }]
+        if not FFMPEG_OK:
+            raise RuntimeError("MP3 nécessite ffmpeg. Utilisez M4A à la place.")
+        base["format"] = "bestaudio/best"
+        base["postprocessors"] = [
+            {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "320"},
+            {"key": "FFmpegMetadata", "add_metadata": True},
+            {"key": "EmbedThumbnail"},
+        ]
+        base["writethumbnail"] = True
 
     elif fmt_type == "audio_m4a":
-        base["format"] = "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"
+        base["format"] = "bestaudio[ext=m4a]/bestaudio/best"
 
     else:
         base["format"] = "best"
@@ -144,26 +137,17 @@ def get_video_info(url: str) -> dict:
     opts = _base_opts()
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        # Détection automatique du meilleur format disponible
-        formats   = info.get("formats", [])
-        max_height = 0
-        has_4k     = False
-        has_1080   = False
-        for f in formats:
-            h = f.get("height") or 0
-            if h > max_height:
-                max_height = h
-            if h >= 2160: has_4k   = True
-            if h >= 1080: has_1080 = True
+        formats    = info.get("formats", [])
+        max_height = max((f.get("height") or 0 for f in formats), default=0)
 
-        recommended = "video_480"
-        rec_label   = "480p (léger)"
-        if has_4k:
-            recommended = "video_hq"
-            rec_label   = "4K disponible ! Meilleure qualité recommandée"
-        elif has_1080:
-            recommended = "video_1080"
-            rec_label   = "1080p disponible"
+        if max_height >= 1440:
+            recommended, rec_label = "video_hq",   f"🔥 {max_height}p disponible !"
+        elif max_height >= 1080:
+            recommended, rec_label = "video_1080", "✨ 1080p disponible"
+        elif max_height >= 720:
+            recommended, rec_label = "video_720",  "📺 720p disponible"
+        else:
+            recommended, rec_label = "video_480",  "480p (qualité max)"
 
         return {
             "title"      : info.get("title", "Unknown"),
@@ -174,6 +158,7 @@ def get_video_info(url: str) -> dict:
             "max_height" : max_height,
             "recommended": recommended,
             "rec_label"  : rec_label,
+            "ffmpeg_ok"  : FFMPEG_OK,
         }
 
 
@@ -186,15 +171,16 @@ def download_video(url: str, fmt_type: str, job_id: str, on_progress=None) -> st
     hooks = []
     if on_progress:
         def _hook(d):
-            if d.get("status") == "downloading":
+            s = d.get("status")
+            if s == "downloading":
                 raw   = strip_ansi(d.get("_percent_str", "0")).strip().rstrip("%")
-                speed = strip_ansi(d.get("_speed_str", "?")).strip()
-                eta   = strip_ansi(d.get("_eta_str", "?")).strip()
+                speed = strip_ansi(d.get("_speed_str", "—")).strip()
+                eta   = strip_ansi(d.get("_eta_str",   "—")).strip()
                 try:    pct = float(raw)
                 except: pct = 0.0
                 on_progress(pct, speed, eta)
-            elif d.get("status") == "finished":
-                on_progress(97, "—", "0s")
+            elif s == "finished":
+                on_progress(95, "⚙ Conversion…", "~5s")
         hooks.append(_hook)
 
     opts = build_ydl_opts(fmt_type, job_dir, hooks)
@@ -205,8 +191,18 @@ def download_video(url: str, fmt_type: str, job_id: str, on_progress=None) -> st
         if fmt_type == "audio_mp3" and FFMPEG_OK:
             filename = os.path.splitext(filename)[0] + ".mp3"
 
-    # Retourne le vrai fichier présent dans le dossier
-    files = [f for f in os.listdir(job_dir) if not f.startswith(".")]
+    valid_exts = {".mp4", ".webm", ".mkv", ".mp3", ".m4a", ".opus", ".ogg", ".flv", ".mov"}
+    files = [
+        f for f in os.listdir(job_dir)
+        if not f.startswith(".")
+        and os.path.splitext(f)[1].lower() in valid_exts
+    ]
+
     if files:
+        priority = [".mp3", ".mp4", ".m4a", ".webm", ".mkv"]
+        files.sort(key=lambda f: next(
+            (i for i, ext in enumerate(priority) if f.lower().endswith(ext)), 99
+        ))
         return os.path.join(job_dir, files[0])
+
     return filename
